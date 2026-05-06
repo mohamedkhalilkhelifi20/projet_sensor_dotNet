@@ -1,4 +1,16 @@
-.vs
+# Build outputs
+bin/
+obj/
+
+# SQLite database (runtime data)
+*.db
+*.db-shm
+*.db-wal
+
+# User-specific files
+*.user
 .vs/
-.idea
-.idea/
+
+# OS
+.DS_Store
+Thumbs.db
