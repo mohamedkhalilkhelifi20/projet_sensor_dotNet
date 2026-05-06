@@ -6,7 +6,9 @@
         <tr>
             <th>Nom</th>
             <th>Lieu</th>
-            <th>Valeur</th>
+            <th>
+                <button class="btn btn-link text-white p-0" @onclick="TriggerSort">Valeur</button>
+            </th>
             <th>Actions</th>
         </tr>
     </thead>
@@ -45,10 +47,18 @@
     [Parameter]
     public EventCallback<int> OnDeleteClicked { get; set; }
 
+    [Parameter]
+    public EventCallback OnSortRequested { get; set; }
+
     // Méthode appelée par le clic du bouton
     private async Task TriggerDelete(int id)
     {
         // On notifie le Parent et on lui passe l'ID du capteur à supprimer
         await OnDeleteClicked.InvokeAsync(id);
+    }
+
+    private async Task TriggerSort()
+    {
+        await OnSortRequested.InvokeAsync();
     }
 }

@@ -27,5 +27,7 @@ namespace DashboardData.Services
 		Task<List<LocationStat>> GetAverageValueByLocationAsync();
 		Task<List<LocationCountStat>> GetSensorCountByLocationAsync();
 		Task<List<LocationCountStat>> GetCountStatsAsync();
+
+        Task<List<SensorData>> SearchSensorsAsync(string? locationName, string? searchText, bool showCriticalOnly = false);
 	}
 }

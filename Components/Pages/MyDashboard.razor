@@ -110,7 +110,7 @@ else
 	}
 	else
 	{
-		<SensorTable Sensors="FilteredSensors" OnDeleteClicked="DeleteSensor" />
+    <SensorTable Sensors="FilteredSensors" OnDeleteClicked="DeleteSensor" OnSortRequested="OnSortRequested" />
 	}
 }
 
@@ -133,48 +133,27 @@ else
 <button class="btn btn-danger mb-3" @onclick="LoadCritical">Alertes (> 30.0)</button>
 <a href="/edit-sensor" class="btn btn-success mb-3">+ Nouveau Capteur</a>
 
-@if (Sensors == null)
-{
-    <p>Chargement en cours...</p>
-}
-else
-{
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>Capteur</th>
-                <th>Lieu</th>
-                <th>Valeur Courante</th>
-				<th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var sensor in Sensors)
-            {
-                <tr>
-                    <td>@sensor.Name</td>
-                    <!-- Grâce au Include(), Location n'est pas nul ! -->
-                    <td>@(sensor.Location?.Name ?? "Non défini")</td>
-                    <td>@sensor.Value</td>
-					<td>
-						<a href="/edit-sensor/@sensor.Id" class="btn btn-sm btn-outline-primary">Éditer</a>
-
-						@* Bouton Supprimer *@
-						<button class="btn btn-sm btn-outline-danger"
-								@onclick="() => DeleteSensor(sensor.Id)">
-							Supprimer
-						</button>
-					</td>
-                </tr>
-            }
-        </tbody>
-    </table>
-}
-
-
-
-<!-- On relie l'événement de l'enfant à la méthode DeleteSensor du parent -->
-<SensorTable Sensors="Sensors" OnDeleteClicked="DeleteSensor" />
+<!-- Sensor list is rendered by the SensorTable component when not showing cards -->
+<div class="row mb-3">
+	<div class="col-md-6">
+		<div class="input-group">
+			<span class="input-group-text"><i class="bi bi-search"></i></span>
+            @*
+			  @bind="SearchText" : Lie la valeur.
+			  @bind:event="oninput" : Met à jour la variable à chaque touche tapée !
+			*@
+          <input type="text"
+				   @bind="SearchText"
+				   @bind:event="oninput"
+				   class="form-control"
+				   placeholder="Rechercher par nom de capteur..." />
+			<div class="input-group-text ms-2">
+				<InputCheckbox @bind-Value="ShowCriticalOnly" />
+			</div>
+			<label class="form-check-label ms-2">Afficher alertes (&gt; 30.0)</label>
+		</div>
+	</div>
+</div>
 
 <!-- Exercice 2 : Donut Chart affichant la répartition du nombre de sondes par lieu -->
 <div class="row mt-4">
@@ -217,103 +196,133 @@ else
 	private bool IsSystemOK = true;
 	private int RequestCount = 0;
 	private string LastLog = "Rien a signaler";
-	private List<SensorData> _sensors = new();
 	private bool _isLoading = true;
-    private List<SensorData>? Sensors;
 
-	private int TotalSondes;  // Nombre total de capteurs
-	private double Moyenne;  // Moyenne de toutes les valeurs
-	private double Max;// Valeur maximale
+	private List<SensorData> Sensors = new();
+	private List<SensorData> FilteredSensors = new();
 
+	private string _searchText = string.Empty;
+	private string SearchText
+	{
+		get => _searchText;
+		set
+		{
+			if (_searchText == value) return;
+			_searchText = value;
+			_ = ExecuteSearch();
+		}
+	}
+
+	private string? SelectedLocationFilter = null;
+
+	private int TotalSondes;
+	private double Moyenne;
+	private double Max;
+
+    private bool _showCriticalOnly = false;
+	private bool ShowCriticalOnly
+	{
+		get => _showCriticalOnly;
+		set
+		{
+			if (_showCriticalOnly == value) return;
+			_showCriticalOnly = value;
+			_ = ExecuteSearch();
+		}
+	}
 	private List<LocationStat> LocationStats = new();
-
-	// Nombre de capteurs par lieu (pour le donut chart)
 	private List<LocationCountStat> CountStats = new();
-
 
 	private void RefreshSystem()
 	{
 		RequestCount++;
 		var nrd = new Random();
 		IsSystemOK = nrd.Next(0, 10) > 2;
-
-		if (IsSystemOK)
-		{
-			LastLog = $"Check {RequestCount} : Tout va bien ";
-		}
-		else
-		{
-			LastLog = $"Chech {RequestCount} : Anomalie détectée";
-		}
+		LastLog = IsSystemOK ? $"Check {RequestCount} : Tout va bien " : $"Check {RequestCount} : Anomalie détectée";
 	}
 
 	protected override async Task OnInitializedAsync()
 	{
-		// 1. Charger la liste complète des capteurs
+		_isLoading = true;
+
 		await LoadAll();
 
-		// 2. Appeler chaque méthode d’agrégation
-		//    Chaque appel génère une requête SQL optimisée
 		TotalSondes = await SensorService.GetTotalCountAsync();
 		Moyenne = await SensorService.GetAverageValueAsync();
 		Max = await SensorService.GetMaxValueAsync();
 
-       LocationStats = await SensorService.GetAverageValueByLocationAsync();
+		LocationStats = await SensorService.GetAverageValueByLocationAsync();
 
-        // Récupère la répartition du nombre de sondes par lieu (exercice 2)
 		CountStats = await SensorService.GetSensorCountByLocationAsync();
-
-		// Si la méthode ci-dessus ne retourne rien, tenter l'autre méthode de l'interface
 		if (CountStats == null || !CountStats.Any())
 		{
 			CountStats = await SensorService.GetCountStatsAsync();
 		}
 
-		// Fin du chargement
 		_isLoading = false;
+
+		await ExecuteSearch();
 	}
 
 	private void IncrementTests()
 	{
 		S1.Increment();
+		S2.Increment();
 	}
 
-    private async Task LoadAll()
-    {
-        Sensors = await SensorService.GetSensors();
-    }
+	private async Task LoadAll()
+	{
+		Sensors = (await SensorService.GetSensors()) ?? new List<SensorData>();
+		FilteredSensors = Sensors.ToList();
+	}
 
-    private async Task LoadCritical()
-    {
-        Sensors = await SensorService.GetCriticalSensorsAsync(30.0);
-    }
-
+	private async Task LoadCritical()
+	{
+		Sensors = (await SensorService.GetCriticalSensorsAsync(30.0)) ?? new List<SensorData>();
+		FilteredSensors = Sensors.ToList();
+	}
 
 	private async Task DeleteSensor(int id)
 	{
-		await SensorService.DeleteSensorAsync(id);  // DELETE en BDD
-		await LoadAll();  // Recharge la liste → tableau mis à jour instantanément
+		await SensorService.DeleteSensorAsync(id);
+		await LoadAll();
 	}
 
-	private string? SelectedLocationFilter = null;
-
-	// Cette méthode sera appelée par Radzen
-	private void OnChartClick(SeriesClickEventArgs args)
+	private async Task OnChartClick(SeriesClickEventArgs args)
 	{
-		// args.Category contient le nom du lieu cliqué (ex: "Labo")
-		string clickedLocation = args.Category.ToString();
-
-		// Bascule (Toggle) : si on reclique sur le même, on annule le filtre
-		if (SelectedLocationFilter == clickedLocation)
-			SelectedLocationFilter = null;
-		else
-			SelectedLocationFilter = clickedLocation;
+		var clickedLocation = args?.Category?.ToString();
+		SelectedLocationFilter = SelectedLocationFilter == clickedLocation ? null : clickedLocation;
+		await ExecuteSearch();
 	}
 
-	// On crée une propriété calculée qui filtre la liste pour le tableau
-	private List<SensorData> FilteredSensors => SelectedLocationFilter == null
-		 ? Sensors
-		 : Sensors.Where(s => s.Location?.Name == SelectedLocationFilter).ToList();
-	
+	// Sorting state
+	private bool _sortDescending = true;
+
+	private async Task OnSortRequested()
+	{
+		_sortDescending = !_sortDescending; // toggle
+		ApplySorting();
+		await Task.CompletedTask;
+	}
+
+	private void ApplySorting()
+	{
+		if (_sortDescending)
+		{
+			FilteredSensors = FilteredSensors.OrderByDescending(s => s.Value).ToList();
+		}
+		else
+		{
+			FilteredSensors = FilteredSensors.OrderBy(s => s.Value).ToList();
+		}
+	}
+
+	private async Task ExecuteSearch()
+	{
+       FilteredSensors = (await SensorService.SearchSensorsAsync(SelectedLocationFilter, SearchText, ShowCriticalOnly)) ?? new List<SensorData>();
+		// Apply sorting after search
+		ApplySorting();
+		StateHasChanged();
+	}
 
 }

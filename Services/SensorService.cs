@@ -143,6 +143,33 @@ namespace DashboardData.Services
 			// Réutilise la même logique que GetSensorCountByLocationAsync
 			return await GetSensorCountByLocationAsync();
 		}
+
+        public async Task<List<SensorData>> SearchSensorsAsync(string? locationName, string? searchText, bool showCriticalOnly = false)
+		{
+			// AsQueryable() prépare une requête sans l'exécuter
+			IQueryable<SensorData> query = _context.Sensors.Include(s => s.Location).AsQueryable();
+
+			// Si un lieu est fourni, on ajoute un WHERE au SQL
+			if (!string.IsNullOrEmpty(locationName))
+			{
+				query = query.Where(s => s.Location.Name == locationName);
+			}
+
+			// Si un texte est fourni, on ajoute un autre WHERE (LIKE) au SQL
+			if (!string.IsNullOrEmpty(searchText))
+			{
+				query = query.Where(s => s.Name.Contains(searchText));
+			}
+
+			// Si on souhaite afficher uniquement les valeurs critiques (> 30.0)
+			if (showCriticalOnly)
+			{
+				query = query.Where(s => s.Value > 30.0);
+			}
+
+			// L'exécution SQL (SELECT ...) se fait uniquement ici, avec ToListAsync() !
+			return await query.ToListAsync();
+		}
 	}
 
 	
