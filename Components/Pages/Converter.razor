@@ -1,0 +1,46 @@
+﻿@page "/converter"
+@rendermode InteractiveServer
+
+<PageTitle>Convertisseur de Température</PageTitle>
+
+<h3>Converter</h3>
+
+<!-- Fahrenheit → Celsius -->
+<div class="mb-4">
+	<h3>Fahrenheit en Celsius</h3>
+	<label>
+		Température en °F :
+
+		@* Champ de saisie avec binding bidirectionnel (@bind)
+           La variable TemperatureF est synchronisée automatiquement
+           avec la valeur saisie par l'utilisateur *@
+
+		<input type="number" @bind="TemperatureF" />
+	</label>
+
+	@* Affichage du résultat calculé en temps réel  ToString("F2") formate le nombre avec 2 décimales *@
+	<p>Résultat : <strong>@(((TemperatureF - 32) * 5 / 9).ToString("F2")) °C</strong></p>
+</div>
+
+<!-- Celsius → Fahrenheit -->
+<div class="mb-4">
+	<h3>Celsius en Fahrenheit</h3>
+	<label>
+		Température en °C :
+
+		@* Deuxième champ avec binding sur TemperatureC *@
+		<input type="number" @bind="TemperatureC" />
+	</label>
+
+	@* Formule inverse : Fahrenheit = Celsius × 9 / 5 + 32 *@
+	<p>Résultat : <strong>@((TemperatureC * 9 / 5 + 32).ToString("F2")) °F</strong></p>
+</div>
+
+@code {
+	//variable liée au champ Fahrenheit
+	private double TemperatureF = 100;
+	// Variable liée au champ Celsius
+	private double TemperatureC = 0;
+}
+
+

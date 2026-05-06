@@ -1,0 +1,41 @@
+﻿@page "/logs"
+@rendermode InteractiveServer
+
+<PageTitle>Logs Système</PageTitle>
+
+<h3>Le Simulateur de Logs Système</h3>
+
+@* Utilisation de LINQ pour compter les logs contenant "Erreur" *@
+<p>
+	<strong>
+		@SystemLogs.Count(log => log.Contains("Erreur")) erreurs sur @SystemLogs.Count logs
+	</strong>
+</p>
+
+@*LISTE DES LOGS*@
+<ul>
+	@* Boucle foreach pour parcourir chaque log *@
+	@foreach (var log in SystemLogs)
+	{
+		@* Classe CSS conditionnelle avec opérateur ternaire :
+           - Si le log contient "Erreur" → text-danger (rouge)
+           - Sinon → text-success (vert) *@
+
+		<li class="@(log.Contains("Erreur") ? "text-danger" : "text-success")">
+			@log
+		</li>
+	}
+</ul>
+
+@code {
+	// Liste des logs système fournie dans l'énoncé
+	private List<string> SystemLogs = new()
+	{
+		"10:00 - Démarrage du système",
+		"10:05 - Erreur : Connexion base de données échouée",
+		"10:06 - Reconnexion réussie",
+		"10:15 - Erreur : Timeout API externe",
+		"10:20 - Sauvegarde automatique effectuée"
+	};
+}
+

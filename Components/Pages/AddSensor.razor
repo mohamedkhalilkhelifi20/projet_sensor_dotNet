@@ -1,0 +1,75 @@
+﻿@page "/add-sensor"
+@using DashboardData.Models
+@using DashboardData.Services
+@inject ISensorService SensorService
+@inject NavigationManager NavManager
+@using System.ComponentModel.DataAnnotations
+
+<h3>AddSensor</h3>
+
+<div class="card p-4 shadow-sm" style="max-width: 500px;">
+	@* Composant de formulaire Blazor :
+		- Model : lie le formulaire à l'objet 'newSensor'
+       - OnValidSubmit : appelle 'HandleSave' si les validations sont respectées
+	*@
+	<EditForm Model="@newSensor" OnValidSubmit="HandleSave" FormName="AddSensorForm">
+		
+		@* Active les règles de validation définies via les Data Annotations du modèle *@
+		<DataAnnotationsValidator />
+
+		@* Affiche le résumé de toutes les erreurs en haut du formulaire en rouge *@
+		<ValidationSummary />
+		<div class="mb-3">
+			<label class="form-label">Nom du capteur</label>
+			@* Liaison bidirectionnelle avec la propriété Name du modèle *@
+			<InputText class="form-control" @bind-Value="newSensor.Name" placeholder="ex: Humidité Cave" required/>
+
+			@* Message d'erreur affiché en rouge sous le champ si Name invalide *@
+			<ValidationMessage For="@(() => newSensor.Name)" />
+
+		</div>
+
+		<div class="mb-3">
+			<label class="form-label">Valeur initiale</label>
+			@* Liaison bidirectionnelle avec la propriété Value du modèle *@
+			<InputNumber class="form-control" @bind-Value="newSensor.Value"/>
+
+			@* Affiche l'erreur si la valeur est hors de la plage [-50, 150] *@
+			<ValidationMessage For="@(() => newSensor.Value)" />
+			
+		</div>
+
+		<div class="d-flex gap-2">
+			@* Bouton de type 'submit' qui déclenche le OnValidSubmit de l'EditForm *@
+			<button type="submit" class="btn btn-primary">
+				<span class="bi bi-check-lg"></span> Valider
+			</button>
+			@* Bouton simple appelant la méthode d'annulation *@
+			<button type="button" class="btn btn-secondary" @onclick="Cancel">
+				Annuler
+			</button>
+		</div>
+	</EditForm>
+</div>
+
+@code {
+	// Initialisation d'un nouvel objet capteur vide
+	private SensorData newSensor = new SensorData();
+
+	private void HandleSave()
+	{
+		// 1. Appel au service pour ajouter la donnée
+		SensorService.AddSensor(newSensor);
+
+		// 2. Redirection vers le dashboard
+		NavManager.NavigateTo("/dashboard");
+	}
+
+	// Retour  au dashboard sans enregistrer de données
+	private void Cancel()
+	{
+		NavManager.NavigateTo("/dashboard");
+	}
+	
+}
+
