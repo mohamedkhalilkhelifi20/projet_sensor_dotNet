@@ -1,0 +1,83 @@
+@page "/signup"
+@rendermode InteractiveServer
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Identity
+@using DashboardData.Models
+@inject UserManager<IdentityUser> UserManager
+@inject SignInManager<IdentityUser> SignInManager
+@inject NavigationManager NavigationManager
+
+<h3>Créer un compte</h3>
+
+<div class="row justify-content-center mt-4">
+    <div class="col-md-6 card p-4 shadow-sm">
+        @if (!string.IsNullOrEmpty(Message))
+        {
+            <div class="alert @AlertClass">@Message</div>
+        }
+
+        <EditForm Model="registration" OnValidSubmit="HandleRegister">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="mb-3">
+                <label class="form-label">Email</label>
+                <InputText @bind-Value="registration.Email" class="form-control" />
+                <ValidationMessage For="() => registration.Email" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Mot de passe</label>
+                <InputText @bind-Value="registration.Password" type="password" class="form-control" />
+                <ValidationMessage For="() => registration.Password" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Confirmer le mot de passe</label>
+                <InputText @bind-Value="registration.ConfirmPassword" type="password" class="form-control" />
+                <ValidationMessage For="() => registration.ConfirmPassword" />
+            </div>
+
+            <button class="btn btn-primary">S'inscrire</button>
+            <a class="btn btn-link" href="/login">Déjà inscrit ? Se connecter</a>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private RegisterModel registration = new();
+    private string? Message;
+    private string AlertClass = "alert-success";
+
+    private async Task HandleRegister()
+    {
+        Message = null;
+        var user = new IdentityUser { UserName = registration.Email, Email = registration.Email };
+        var result = await UserManager.CreateAsync(user, registration.Password);
+        if (result.Succeeded)
+        {
+            // Optionally sign in the user immediately
+            await SignInManager.SignInAsync(user, isPersistent: false);
+            NavigationManager.NavigateTo("/dashboard");
+            return;
+        }
+
+        AlertClass = "alert-danger";
+        Message = string.Join(" ", result.Errors.Select(e => e.Description));
+    }
+
+    private class RegisterModel
+    {
+        [Required]
+        [EmailAddress]
+        public string? Email { get; set; }
+
+        [Required]
+        [MinLength(6, ErrorMessage = "Le mot de passe doit contenir au moins 6 caractères.")]
+        public string? Password { get; set; }
+
+        [Required]
+        [Compare("Password", ErrorMessage = "Les mots de passe ne correspondent pas.")]
+        public string? ConfirmPassword { get; set; }
+    }
+}
